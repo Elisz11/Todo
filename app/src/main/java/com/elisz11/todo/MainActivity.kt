@@ -12,6 +12,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -81,6 +82,8 @@ class MainActivity : ComponentActivity() {
             TodoTheme {
 
                 var showAddEditTaskDialog by remember { mutableStateOf(false) }
+                var showAddDeleteTaskDialog by remember { mutableStateOf(false) }
+                var taskToDelete by remember { mutableStateOf<Task?>(null) }
 
                 var name by remember {
                     mutableStateOf("")
@@ -114,8 +117,9 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     LazyColumn(modifier = Modifier.padding(innerPadding)) {
                         items(taskList.sortedByDescending { it.taskPriority }) { task->
-                            CardView(task) { clicked ->
-                                viewModel.deleteTask(task)
+                            CardView(task) { clickedTask ->
+                                showAddDeleteTaskDialog = true
+                                taskToDelete = clickedTask
                             }
                         }
                     }
@@ -127,6 +131,20 @@ class MainActivity : ComponentActivity() {
                             viewModel.upsertTask(task)
                             showAddEditTaskDialog = false
                         }
+                    )
+                }
+                if (showAddDeleteTaskDialog) {
+                    AddDeleteTaskDialog(
+                        onDismiss = {
+                            showAddDeleteTaskDialog = false
+                            taskToDelete = null
+                        },
+                        onConfirm = {
+                            viewModel.deleteTask(taskToDelete!!)
+                            taskToDelete = null
+                            showAddDeleteTaskDialog = false
+                        },
+                        taskToDelete!!
                     )
                 }
             }
@@ -174,8 +192,8 @@ fun AddEditTaskDialog(
 ) {
     var taskTitle by remember { mutableStateOf("") }
     var taskDesc by remember { mutableStateOf("") }
-    var taskPriority by remember { mutableIntStateOf(0) }
-    var taskPriorityText by remember { mutableStateOf(taskPriority.toString()) }
+    var taskPriority by remember { mutableStateOf<Int?>(null) }
+    var taskPriorityText by remember { mutableStateOf("") }
     var isTitleError by remember { mutableStateOf(false) }
     var isPriorityError by remember { mutableStateOf(false) }
 
@@ -231,7 +249,7 @@ fun AddEditTaskDialog(
                                 isPriorityError = true
                             }
                         } else if (newValue.isEmpty()) {
-                            taskPriority = 0
+                            taskPriority = null
                             isPriorityError = false
                         } else {
                             isPriorityError = true
@@ -267,7 +285,7 @@ fun AddEditTaskDialog(
                         val newTask = Task(
                             taskTitle = taskTitle.trim(),
                             taskDesc = taskDesc.trim(),
-                            taskPriority = taskPriority
+                            taskPriority = taskPriority!!
                         )
                         onConfirm(newTask)
                     }
@@ -276,6 +294,26 @@ fun AddEditTaskDialog(
                 Text("Add")
             }
         },
+        dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+fun AddDeleteTaskDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    task: Task
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Are you sure to delete this task?") },
+        text = {
+            Column {
+                Text (task.taskTitle)
+
+            }
+        },
+        confirmButton = { Button(onClick = onConfirm) { Text("Delete") } },
         dismissButton = { Button(onClick = onDismiss) { Text("Cancel") } }
     )
 }
